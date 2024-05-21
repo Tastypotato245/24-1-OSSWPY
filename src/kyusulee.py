@@ -10,8 +10,13 @@ cell_size = 8  # 각 셀의 크기 (화면 해상도 / grid 크기)
 is_paused = True  # 초기에는 일시정지 상태
 time_limit = 200  # 게임 시간 제한 200초
 remaining_time = time_limit
+score = 0
+score_text = None
 timer_text = None
 pause_text = None
+goal_score = 2147483647
+result_text = None
+mouse_pressed = False  # 마우스가 클릭된 상태인지 확인
 
 # 초기 배열 설정
 grid = [[0 for _ in range(grid_width)] for _ in range(grid_height)]
@@ -27,15 +32,17 @@ def draw_grid():
             rectangles[y][x] = rect
 
 def initialize(timestamp):
-    global is_paused, remaining_time
+    global is_paused, remaining_time, score
     is_paused = True
     remaining_time = time_limit
+    score = 0
     draw_grid()
     display_pause_text()
     display_timer()
+    display_score()
 
 def update_grid():
-    global next_grid
+    global next_grid, score
     next_grid = [[0 for _ in range(grid_width)] for _ in range(grid_height)]
     for y in range(grid_height):
         for x in range(grid_width):
@@ -51,6 +58,10 @@ def update_grid():
                 next_grid[y][x] = 1
             else:
                 next_grid[y][x] = 0
+
+            if grid[y][x] != next_grid[y][x]:
+                score += 1
+
     return next_grid
 
 def update_colors():
@@ -102,10 +113,28 @@ def update_timer():
         w.deleteObject(timer_text)
     display_timer()
 
+def display_score():
+    global score_text
+    score_text = w.newText(750, 30, 200, text=f'Score: {score}/{goal_score}', fill_color='black', anchor='e', isVisible=True)
+
+def update_score():
+    global score_text
+    if score_text is not None:
+        w.deleteObject(score_text)
+    display_score()
+
+def display_result(message):
+    global result_text
+    result_text = w.newText(400, 300, 200, text=message, fill_color='green', anchor='center', isVisible=True)
+
 def update(timestamp):
     global grid, remaining_time
     remaining_time -= w.interval
-    if remaining_time <= 0:
+    if remaining_time <= 0 or score >= goal_score:
+        if score >= goal_score:
+            display_result("축하합니다! 성공!")
+        else:
+            display_result("실패했습니다.")
         w.stop()
         return
 
@@ -115,17 +144,30 @@ def update(timestamp):
 
     update_timer()
     update_colors()
+    update_score()
 
 def handle_mouse_click(event):
+    global score, mouse_pressed
+    mouse_pressed = True
     grid_x = event.x // cell_size
     grid_y = event.y // cell_size
     if 0 <= grid_x < grid_width and 0 <= grid_y < grid_height:
-        grid[grid_y][grid_x] = 1 - grid[grid_y][grid_x]  # 토글 셀 값
+        if grid[grid_y][grid_x] == 0:
+            grid[grid_y][grid_x] = 1
+            score += 1
+        else:
+            grid[grid_y][grid_x] = 0
+            score += 1
         next_grid[grid_y][grid_x] = grid[grid_y][grid_x]
         update_colors()
+        update_score()
+
+def handle_mouse_release(event):
+    global mouse_pressed
+    mouse_pressed = False
 
 def handle_mouse_move(event):
-    global hovered
+    global hovered, mouse_pressed
     grid_x = event.x // cell_size
     grid_y = event.y // cell_size
     if 0 <= grid_x < grid_width and 0 <= grid_y < grid_height:
@@ -138,6 +180,17 @@ def handle_mouse_move(event):
         hovered[grid_y][grid_x] = True
         if grid[grid_y][grid_x] == 0:  # Only change color if the cell is white
             w.recolorObject(rectangles[grid_y][grid_x], new_fill_color='grey')
+        
+        if mouse_pressed:
+            if grid[grid_y][grid_x] == 0:
+                grid[grid_y][grid_x] = 1
+                score += 1
+            else:
+                grid[grid_y][grid_x] = 0
+                score += 1
+            next_grid[grid_y][grid_x] = grid[grid_y][grid_x]
+            update_colors()
+            update_score()
 
 def handle_key_press(event):
     if event.keysym == 'space':
@@ -151,8 +204,10 @@ w.update = update
 w.internals얘는안봐도돼요.canvas.bind('<KeyPress>', handle_key_press)
 w.internals얘는안봐도돼요.canvas.focus_set()
 
-# 마우스 클릭 및 이동 이벤트 바인딩
+# 마우스 클릭, 이동, 및 릴리스 이벤트 바인딩
 w.internals얘는안봐도돼요.canvas.bind('<Button-1>', handle_mouse_click)
+w.internals얘는안봐도돼요.canvas.bind('<B1-Motion>', handle_mouse_move)
+w.internals얘는안봐도돼요.canvas.bind('<ButtonRelease-1>', handle_mouse_release)
 w.internals얘는안봐도돼요.canvas.bind('<Motion>', handle_mouse_move)
 
 # 윈도우 시작
