@@ -163,6 +163,7 @@ def display_result(message):
 
 def display_instructions():
     instructions = (
+        "ESC: EXIT\n"
         "Spacebar: Pause/Resume\n"
         "H: Halve the goal score\n"
         "R: Random pattern\n"
@@ -266,6 +267,21 @@ def draw_random_pattern():
             grid[start_y + y][start_x + x] = pattern[y][x]
 
     update_colors()
+
+def handle_key_press(event):
+    global goal_score
+    if game_over:
+        return
+
+    if event.keysym == 'space':
+        toggle_pause()
+    elif event.keysym == 'h':
+        goal_score = max(1, goal_score // 2)  # 최소 1로 제한
+        update_score()
+    elif event.keysym == 'r':
+        draw_random_pattern()
+    elif event.keysym == 'Escape':
+        w.stop()
 
 # 초기화 및 업데이트 함수 설정
 w.initialize = initialize
