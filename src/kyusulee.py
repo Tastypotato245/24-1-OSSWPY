@@ -1,4 +1,5 @@
 import gui_core as gui
+import random
 
 # 윈도우 초기화
 w = gui.Window(title="Conway's Game of Life", width=800, height=600, interval=1/15)
@@ -14,6 +15,7 @@ score = 0
 score_text = None
 timer_text = None
 pause_text = None
+game_over = False  # 게임 오버 상태 확인
 goal_score = 2147483647
 result_text = None
 mouse_pressed = False  # 마우스가 클릭된 상태인지 확인
@@ -23,6 +25,37 @@ grid = [[0 for _ in range(grid_width)] for _ in range(grid_height)]
 next_grid = [[0 for _ in range(grid_width)] for _ in range(grid_height)]
 rectangles = [[None for _ in range(grid_width)] for _ in range(grid_height)]
 hovered = [[False for _ in range(grid_width)] for _ in range(grid_height)]
+changed = [[False for _ in range(grid_width)] for _ in range(grid_height)]  # 변경된 픽셀을 추적
+
+patterns = {
+    "glider": [
+        [0, 1, 0],
+        [0, 0, 1],
+        [1, 1, 1]
+    ],
+    "small_exploder": [
+        [0, 1, 0],
+        [1, 1, 1],
+        [1, 0, 1],
+        [0, 1, 0]
+    ],
+    "10_cell_row": [
+        [1] * 10
+    ],
+    "exploder": [
+        [1, 0, 1, 0, 1],
+        [1, 0, 1, 0, 1],
+        [1, 1, 1, 1, 1],
+        [1, 0, 1, 0, 1],
+        [1, 0, 1, 0, 1]
+    ],
+    "spaceship": [
+        [0, 1, 1, 1, 1],
+        [1, 0, 0, 0, 1],
+        [0, 0, 0, 0, 1],
+        [1, 0, 0, 1, 0]
+    ]
+}
 
 def draw_grid():
     for y in range(grid_height):
@@ -40,6 +73,7 @@ def initialize(timestamp):
     display_pause_text()
     display_timer()
     display_score()
+    display_instructions()
 
 def update_grid():
     global next_grid, score
@@ -127,18 +161,29 @@ def display_result(message):
     global result_text
     result_text = w.newText(400, 300, 200, text=message, fill_color='green', anchor='center', isVisible=True)
 
+def display_instructions():
+    instructions = (
+        "Spacebar: Pause/Resume\n"
+        "H: Halve the goal score\n"
+        "R: Random pattern\n"
+        "Click and drag: Change cell states"
+    )
+    w.newText(50, 10, 200, text=instructions, fill_color='black', anchor='nw', isVisible=True)
+
 def update(timestamp):
-    global grid, remaining_time
+    global grid, remaining_time, game_over
     remaining_time -= w.interval
+
     if remaining_time <= 0 or score >= goal_score:
         if score >= goal_score:
             display_result("축하합니다! 성공!")
         else:
             display_result("실패했습니다.")
-        w.stop()
+        game_over = True  # 게임 오버 상태로 설정
+        w.internals얘는안봐도돼요.master.after(3000, w.stop)  # 3초 후에 w.stop 호출
         return
 
-    if not is_paused:
+    if not is_paused and not game_over:
         next_grid = update_grid()
         apply_next_grid()
 
@@ -152,22 +197,25 @@ def handle_mouse_click(event):
     grid_x = event.x // cell_size
     grid_y = event.y // cell_size
     if 0 <= grid_x < grid_width and 0 <= grid_y < grid_height:
-        if grid[grid_y][grid_x] == 0:
-            grid[grid_y][grid_x] = 1
-            score += 1
-        else:
-            grid[grid_y][grid_x] = 0
-            score += 1
-        next_grid[grid_y][grid_x] = grid[grid_y][grid_x]
-        update_colors()
-        update_score()
+        if not changed[grid_y][grid_x]:
+            if grid[grid_y][grid_x] == 0:
+                grid[grid_y][grid_x] = 1
+                score += 1
+            else:
+                grid[grid_y][grid_x] = 0
+                score += 1
+            changed[grid_y][grid_x] = True
+            next_grid[grid_y][grid_x] = grid[grid_y][grid_x]
+            update_colors()
+            update_score()
 
 def handle_mouse_release(event):
-    global mouse_pressed
+    global mouse_pressed, changed
     mouse_pressed = False
+    changed = [[False for _ in range(grid_width)] for _ in range(grid_height)]
 
 def handle_mouse_move(event):
-    global hovered, mouse_pressed
+    global hovered, mouse_pressed, score
     grid_x = event.x // cell_size
     grid_y = event.y // cell_size
     if 0 <= grid_x < grid_width and 0 <= grid_y < grid_height:
@@ -178,23 +226,46 @@ def handle_mouse_move(event):
                     if grid[y][x] == 0:
                         w.recolorObject(rectangles[y][x], new_fill_color='white')
         hovered[grid_y][grid_x] = True
-        if grid[grid_y][grid_x] == 0:  # Only change color if the cell is white
+        if grid[grid_y][grid_x] == 0:
             w.recolorObject(rectangles[grid_y][grid_x], new_fill_color='grey')
         
-        if mouse_pressed:
+        if mouse_pressed and not changed[grid_y][grid_x]:
             if grid[grid_y][grid_x] == 0:
                 grid[grid_y][grid_x] = 1
                 score += 1
             else:
                 grid[grid_y][grid_x] = 0
                 score += 1
+            changed[grid_y][grid_x] = True
             next_grid[grid_y][grid_x] = grid[grid_y][grid_x]
             update_colors()
             update_score()
 
 def handle_key_press(event):
+    global goal_score
     if event.keysym == 'space':
         toggle_pause()
+    elif event.keysym == 'h':
+        goal_score = max(1, goal_score // 2)  # 최소 1로 제한
+        update_score()
+    elif event.keysym == 'r':
+        draw_random_pattern()
+
+def draw_random_pattern():
+    global grid, rectangles
+    pattern_name = random.choice(list(patterns.keys()))
+    pattern = patterns[pattern_name]
+    pattern_height = len(pattern)
+    pattern_width = len(pattern[0])
+    
+    start_x = (grid_width - pattern_width) // 2
+    start_y = (grid_height - pattern_height) // 2
+    
+    for y in range(pattern_height):
+        for x in range(pattern_width):
+            grid[start_y + y][start_x + x] = pattern[y][x]
+
+    update_colors()
 
 # 초기화 및 업데이트 함수 설정
 w.initialize = initialize
