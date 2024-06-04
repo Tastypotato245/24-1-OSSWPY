@@ -6,31 +6,35 @@
 - Conway's Game of Life by Q
 
 # 사용 방법
-- 
+- 게임이 시작되면 곧바로 100초의 시간이 흐른다. pause상태는 space bar로 토글이 가능하고, 콘웨이의 생명게임 패턴을 그려 최대한 짧은 시간 내에 목표 점수를 달성하자. 목표 점수는 수동 또는 자동으로 변경되는 셀의 개수이다. 클릭 및 드래그로 셀의 상태를 변경시킬 수 있고, b로 보드를 다 지우기, r로 랜덤한 콘웨이의 생명 게임 패턴 일부를 중앙에 불러올 수 있다.
 
 # 실행 흐름
 
 1. 정상적으로 플레이하여 클리어하는 실행 흐름
-
-
+- 정상적으로 사용방법에 따라 플레이한다. 시간이 다 흐르기 전에 목표점수에 달성하면, 게임을 클리어한 판정이 되며 게임이 종료된다.
 
 2. 플레이하다 패배하는 실행 흐름
-
-
+- 만약 시간 내에 목표 점수에 도달하지 못하면 게임에 패배한 판정이 되며 패배 글씨가 나타난다. 이후 게임이 종료된다.
 
 
 3. 간단한 조작으로 손쉽게 클리어 가능한 실행 흐름(치트 가능)
+- h키를 눌러 목표 점수를 계속해서 half로 줄일 수 있다. 이후는 1번과 동일하다.
 
-- 
+4. 관전 모드
+- t키를 눌러 timer를 정지시키고 마음대로 연습하거나 관전할 수 있다.
 
 # 개인별 추가 목표
 
 1. 랜덤하게 패턴이 추가되도록 하는 버튼 추가 (12주차 협의 후 개발함)
  - r 키를 누르면 랜덤하게 콘웨이의 생명게임의 유명한 패턴 중 하나가 중앙에 생성된다.
 
-2. 해상도 조절 (13주차 협의 후 개발중)
 
-3. 게임 속도 조절 (14주차 건의 예정)
+2. Board를 전부 Clear 하는 버튼 추가 (14주차 추가 목표로 건의 예정)
+ - b 키를 누르면 모든 보드가 클리어됨. 
+
+3. 관전 모드 추가 (14주차 추가 목표로 건의 예정)
+ - t 키를 누르면 타이머가 정지됨
+
 
 '''
 
@@ -47,16 +51,17 @@ grid_width = 100
 grid_height = 75
 cell_size = 8  # 각 셀의 크기 (화면 해상도 / grid 크기)
 is_paused = True  # 초기에는 일시정지 상태
-time_limit = 200  # 게임 시간 제한 200초
+time_limit = 100  # 게임 시간 제한 100초
 remaining_time = time_limit
 score = 0
 score_text = None
 timer_text = None
 pause_text = None
 game_over = False  # 게임 오버 상태 확인
-goal_score = 2147483647
+goal_score = 300000
 result_text = None
 mouse_pressed = False  # 마우스가 클릭된 상태인지 확인
+spectator_mode = False # 관전자 모드 체크
 
 # 초기 배열 설정
 grid = [[0 for _ in range(grid_width)] for _ in range(grid_height)]
@@ -92,6 +97,14 @@ patterns = {
         [1, 0, 0, 0, 1],
         [0, 0, 0, 0, 1],
         [1, 0, 0, 1, 0]
+    ],
+    "least_inf_grow" : [
+        [0, 0, 0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 1, 0, 1, 1],
+        [0, 0, 0, 0, 1, 0, 1, 0],
+        [0, 0, 0, 0, 1, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0],
+        [1, 0, 1, 0, 0, 0, 0, 0]
     ]
 }
 
@@ -200,18 +213,22 @@ def display_result(message):
     result_text = w.newText(400, 300, 200, text=message, fill_color='green', anchor='center', isVisible=True)
 
 def display_instructions():
+    global spectator_mode
     instructions = (
         "ESC: EXIT\n"
         "Spacebar: Pause/Resume\n"
         "H: Halve the goal score\n"
         "R: Random pattern\n"
+        "B: Clear all\n"
+        "T: Spectator Mode Toggle\n"
         "Click and drag: Change cell states"
     )
     w.newText(50, 10, 200, text=instructions, fill_color='black', anchor='nw', isVisible=True)
 
 def update(timestamp):
-    global grid, remaining_time, game_over
-    remaining_time -= w.interval
+    global grid, remaining_time, game_over, spectator_mode
+    if spectator_mode == False:
+        remaining_time -= w.interval
 
     if remaining_time <= 0 or score >= goal_score:
         if score >= goal_score:
@@ -280,16 +297,6 @@ def handle_mouse_move(event):
             update_colors()
             update_score()
 
-def handle_key_press(event):
-    global goal_score
-    if event.keysym == 'space':
-        toggle_pause()
-    elif event.keysym == 'h':
-        goal_score = max(1, goal_score // 2)  # 최소 1로 제한
-        update_score()
-    elif event.keysym == 'r':
-        draw_random_pattern()
-
 def draw_random_pattern():
     global grid, rectangles
     pattern_name = random.choice(list(patterns.keys()))
@@ -306,11 +313,16 @@ def draw_random_pattern():
 
     update_colors()
 
+def clear_board():
+    for y in range(grid_height):
+        for x in range(grid_width):
+            grid[y][x] = False
+            next_grid[y][x] = False
+
 def handle_key_press(event):
-    global goal_score
+    global goal_score, spectator_mode
     if game_over:
         return
-
     if event.keysym == 'space':
         toggle_pause()
     elif event.keysym == 'h':
@@ -318,10 +330,14 @@ def handle_key_press(event):
         update_score()
     elif event.keysym == 'r':
         draw_random_pattern()
+    elif event.keysym == 'b':
+        clear_board()
+    elif event.keysym == 't':
+        spectator_mode = not spectator_mode
     elif event.keysym == 'Escape':
         w.stop()
 
-# 초기화 및 업데이트 함수 설정
+# 초기화
 w.initialize = initialize
 w.update = update
 
@@ -329,12 +345,12 @@ w.update = update
 w.internals얘는안봐도돼요.canvas.bind('<KeyPress>', handle_key_press)
 w.internals얘는안봐도돼요.canvas.focus_set()
 
-# 마우스 클릭, 이동, 및 릴리스 이벤트 바인딩
+# 마우스 클릭, 이동, 및 릴리즈 이벤트 바인딩
 w.internals얘는안봐도돼요.canvas.bind('<Button-1>', handle_mouse_click)
 w.internals얘는안봐도돼요.canvas.bind('<B1-Motion>', handle_mouse_move)
 w.internals얘는안봐도돼요.canvas.bind('<ButtonRelease-1>', handle_mouse_release)
 w.internals얘는안봐도돼요.canvas.bind('<Motion>', handle_mouse_move)
 
-# 윈도우 시작
+# 시작
 w.start()
 
