@@ -1,8 +1,46 @@
+'''
+# 자신의 이름
+- 20204946 이규성
+
+# 프로그램 이름
+- Conway's Game of Life by Q
+
+# 사용 방법
+- 
+
+# 실행 흐름
+
+1. 정상적으로 플레이하여 클리어하는 실행 흐름
+
+
+
+2. 플레이하다 패배하는 실행 흐름
+
+
+
+
+3. 간단한 조작으로 손쉽게 클리어 가능한 실행 흐름(치트 가능)
+
+- 
+
+# 개인별 추가 목표
+
+1. 랜덤하게 패턴이 추가되도록 하는 버튼 추가 (12주차 협의 후 개발함)
+ - r 키를 누르면 랜덤하게 콘웨이의 생명게임의 유명한 패턴 중 하나가 중앙에 생성된다.
+
+2. 해상도 조절 (13주차 협의 후 개발중)
+
+3. 게임 속도 조절 (14주차 건의 예정)
+
+'''
+
+
+
 import gui_core as gui
 import random
 
 # 윈도우 초기화
-w = gui.Window(title="Conway's Game of Life", width=800, height=600, interval=1/15)
+w = gui.Window(title="Conway's Game of Life by Q", width=800, height=600, interval=1/15)
 
 # 그리드 사이즈 
 grid_width = 100
