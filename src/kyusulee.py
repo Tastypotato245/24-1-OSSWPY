@@ -25,15 +25,16 @@
 
 # 개인별 추가 목표
 
+!!!초월모드!!!
+
 1. 랜덤하게 패턴이 추가되도록 하는 버튼 추가 (12주차 협의 후 개발함)
  - r 키를 누르면 랜덤하게 콘웨이의 생명게임의 유명한 패턴 중 하나가 중앙에 생성된다.
 
-
-2. Board를 전부 Clear 하는 버튼 추가 (14주차 추가 목표로 건의 예정)
+2. Board를 전부 Clear 하는 버튼 추가 -완-
  - b 키를 누르면 모든 보드가 클리어됨. 
 
-3. 관전 모드 추가 (14주차 추가 목표로 건의 예정)
- - t 키를 누르면 타이머가 정지됨
+3. 관전 모드 추가 -완-
+ - t 키를 누르면 타이머 및 스코어가 정지 및 표기가 사라짐
 
 
 '''
@@ -229,26 +230,31 @@ def update(timestamp):
     global grid, remaining_time, game_over, spectator_mode
     if spectator_mode == False:
         remaining_time -= w.interval
+        if remaining_time <= 0 or score >= goal_score:
+            if score >= goal_score:
+                display_result("축하합니다! 성공!")
+            else:
+                display_result("실패했습니다.")
+            game_over = True  # 게임 오버 상태로 설정
+            w.internals얘는안봐도돼요.master.after(3000, w.stop)  # 3초 후에 w.stop 호출
+            return
+ 
+        if not is_paused and not game_over:
+            next_grid = update_grid()
+            apply_next_grid()
+ 
+        update_timer()
+        update_colors()
+        update_score()
+    else:
+        if not is_paused and not game_over:
+            next_grid = update_grid()
+            apply_next_grid()
+        update_colors()
 
-    if remaining_time <= 0 or score >= goal_score:
-        if score >= goal_score:
-            display_result("축하합니다! 성공!")
-        else:
-            display_result("실패했습니다.")
-        game_over = True  # 게임 오버 상태로 설정
-        w.internals얘는안봐도돼요.master.after(3000, w.stop)  # 3초 후에 w.stop 호출
-        return
-
-    if not is_paused and not game_over:
-        next_grid = update_grid()
-        apply_next_grid()
-
-    update_timer()
-    update_colors()
-    update_score()
 
 def handle_mouse_click(event):
-    global score, mouse_pressed
+    global score, mouse_pressed, spectator_mode
     mouse_pressed = True
     grid_x = event.x // cell_size
     grid_y = event.y // cell_size
@@ -263,7 +269,8 @@ def handle_mouse_click(event):
             changed[grid_y][grid_x] = True
             next_grid[grid_y][grid_x] = grid[grid_y][grid_x]
             update_colors()
-            update_score()
+            if spectator_mode is False:
+                update_score()
 
 def handle_mouse_release(event):
     global mouse_pressed, changed
@@ -271,7 +278,7 @@ def handle_mouse_release(event):
     changed = [[False for _ in range(grid_width)] for _ in range(grid_height)]
 
 def handle_mouse_move(event):
-    global hovered, mouse_pressed, score
+    global hovered, mouse_pressed, score, spectator_mode
     grid_x = event.x // cell_size
     grid_y = event.y // cell_size
     if 0 <= grid_x < grid_width and 0 <= grid_y < grid_height:
@@ -295,7 +302,8 @@ def handle_mouse_move(event):
             changed[grid_y][grid_x] = True
             next_grid[grid_y][grid_x] = grid[grid_y][grid_x]
             update_colors()
-            update_score()
+            if spectator_mode is False:
+                update_score()
 
 def draw_random_pattern():
     global grid, rectangles
@@ -319,8 +327,25 @@ def clear_board():
             grid[y][x] = False
             next_grid[y][x] = False
 
+
+def spectator_toggle():
+    global timer_text, score_text, score, spectator_mode, is_paused, remaining_time
+
+    if spectator_mode is False:
+        spectator_mode = True
+        score = -999999
+        w.hideObject(timer_text)
+        w.hideObject(score_text)
+    else:
+        spectator_mode = False
+        is_paused = True
+        remaining_time = time_limit
+        w.showObject(timer_text);
+        w.showObject(score_text);
+        score = 0
+
 def handle_key_press(event):
-    global goal_score, spectator_mode
+    global goal_score
     if game_over:
         return
     if event.keysym == 'space':
@@ -333,7 +358,7 @@ def handle_key_press(event):
     elif event.keysym == 'b':
         clear_board()
     elif event.keysym == 't':
-        spectator_mode = not spectator_mode
+        spectator_toggle()
     elif event.keysym == 'Escape':
         w.stop()
 
