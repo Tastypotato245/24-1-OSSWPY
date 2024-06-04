@@ -72,3 +72,14 @@ ProductName:		macOS
 ProductVersion:		14.5
 BuildVersion:		23F79v
 ```
+
+
+# Youtube link
+
+실행흐름1: https://youtu.be/kSwC0Dj3ekc
+
+실행흐름2: https://youtu.be/KFagRakHhME
+
+실행흐름3: https://youtu.be/9HQ56RXHM1o
+
+실행흐름4: https://youtu.be/zORJj1I1ORY
